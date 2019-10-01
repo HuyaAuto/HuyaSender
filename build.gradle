@@ -1,0 +1,33 @@
+plugins {
+    id 'groovy'
+    id 'java'
+    id 'org.jetbrains.intellij' version '0.4.10'
+}
+
+group 'com.skytalking'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+compileJava.options.encoding = 'UTF-8'
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.4.17'
+    compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.2.0'
+    compile 'com.squareup.okhttp3:logging-interceptor:4.0.1'
+    compile "io.reactivex.rxjava2:rxjava:2.2.10"
+    compile 'org.greenrobot:eventbus:3.1.1'
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+// See https://github.com/JetBrains/gradle-intellij-plugin/
+intellij {
+    version '2019.2'
+}
+patchPluginXml {
+    changeNotes "To validate the data entered into the dialog, you can override the doValidate() method. The method will be called automatically by timer. If the currently entered data is valid, you need to return null from your implementation. Otherwise, you need to return a ValidationInfo object which encapsulates an error message and an optional component associated with the invalid data. If you specify a component, an error icon will be displayed next to it, and it will be focused when the user tries to invoke the OK action."
+    sinceBuild "191"
+    untilBuild "193.*"
+}

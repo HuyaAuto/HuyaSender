@@ -1,0 +1,37 @@
+<idea-plugin>
+    <id>com.skytalking.HuyaMonitor</id>
+    <name>HuyaMonitor</name>
+    <vendor email="support@skytalking.com" url="http://www.skytalking.com">skytalking</vendor>
+    <idea-version until-build="193.*" since-build="192"/>
+    <version>1.0</version>
+    <description><![CDATA[
+     To validate the data entered into the dialog, you can override the doValidate() method.
+     The method will be called automatically by timer. If the currently entered data is valid,
+      you need to return null from your implementation. Otherwise, you need to return a ValidationInfo object which
+      encapsulates an error message and an optional component associated with the invalid data. If you specify a component,
+       an error icon will be displayed next to it, and it will be focused when the user tries to invoke the OK action.
+    ]]></description>
+
+    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+         on how to target different products -->
+    <!-- uncomment to enable plugin in all products
+    <depends>com.intellij.modules.lang</depends>
+    -->
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+
+        <applicationService serviceInterface="com.skytalking.services.HuyaMonitorService"
+                            serviceImplementation="com.skytalking.services.impl.HuyaMonitorServiceImpl"/>
+        <toolWindow factoryClass="com.skytalking.factory.HuyaMonitorWindowFactory" anchor="right"
+                    id="HUYA Monitor" icon="/icons/huya.png" />
+        <projectService serviceImplementation="com.skytalking.windows.HuyaMonitorWindow" overrides="false"/>
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action id="com.skytalking.show" class="com.skytalking.actions.StartMonitorAction" text="show">
+            <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>
