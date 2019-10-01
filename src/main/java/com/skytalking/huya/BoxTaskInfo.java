@@ -1,5 +1,6 @@
 package com.skytalking.huya;
 
+import com.qq.taf.jce.JceDisplayer;
 import com.qq.taf.jce.JceInputStream;
 import com.qq.taf.jce.JceOutputStream;
 import com.qq.taf.jce.JceStruct;
@@ -22,5 +23,15 @@ public class BoxTaskInfo extends JceStruct {
         iItemCount = jceInputStream.read(iItemCount, 2, false);
         iRewardLevel = jceInputStream.read(iRewardLevel, 3, false);
         iTaskId = jceInputStream.read(iTaskId, 4, false);
+    }
+
+    @Override
+    public void display(StringBuilder sb, int level) {
+        JceDisplayer jceDisplayer = new JceDisplayer(sb, level);
+        jceDisplayer.display(iStat, "iStat");
+        jceDisplayer.display(iItemType, "iItemType");
+        jceDisplayer.display(iItemCount, "iItemCount");
+        jceDisplayer.display(iRewardLevel, "iRewardLevel");
+        jceDisplayer.display(iTaskId, "iTaskId");
     }
 }

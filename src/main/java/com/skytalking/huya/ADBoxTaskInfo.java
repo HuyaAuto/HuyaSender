@@ -1,5 +1,6 @@
 package com.skytalking.huya;
 
+import com.qq.taf.jce.JceDisplayer;
 import com.qq.taf.jce.JceInputStream;
 import com.qq.taf.jce.JceOutputStream;
 import com.qq.taf.jce.JceStruct;
@@ -37,5 +38,22 @@ public class ADBoxTaskInfo extends JceStruct {
         sUnGetJmp = jceInputStream.read(sUnGetJmp, 9, false);
         iGiftType = jceInputStream.read(iGiftType, 10, false);
         sTitle = jceInputStream.read(sTitle, 11, false);
+    }
+
+    @Override
+    public void display(StringBuilder sb, int level) {
+        JceDisplayer jceDisplayer = new JceDisplayer(sb, level);
+        jceDisplayer.display(iTaskId, "iTaskId");
+        jceDisplayer.display(iStat, "iStat");
+        jceDisplayer.display(iADType, "iADType");
+        jceDisplayer.display(iItemCount, "iItemCount");
+        jceDisplayer.display(iRewardLevel, "iRewardLevel");
+        jceDisplayer.display(sADPic, "sADPic");
+        jceDisplayer.display(sGetPic, "sGetPic");
+        jceDisplayer.display(sGetJmp, "sGetJmp");
+        jceDisplayer.display(sUnGetPic, "sUnGetPic");
+        jceDisplayer.display(sUnGetJmp, "sUnGetJmp");
+        jceDisplayer.display(iGiftType, "iGiftType");
+        jceDisplayer.display(sTitle, "sTitle");
     }
 }

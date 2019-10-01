@@ -1,15 +1,12 @@
 package com.skytalking.services.impl;
 
-import com.intellij.ide.IdeEventQueue;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationType;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.qq.jce.wup.UniPacket;
 import com.qq.taf.jce.JceInputStream;
 import com.qq.taf.jce.JceOutputStream;
-import com.qq.taf.jce.JceStruct;
 import com.skytalking.bean.SocketLoginFinished;
 import com.skytalking.huya.*;
 import com.skytalking.services.HuyaMonitorService;
@@ -23,7 +20,6 @@ import okio.ByteString;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -369,6 +365,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         EventBus.getDefault().post(userEventRsp);
                         startUserHeartbeat(userEventRsp.iUserHeartBeatInterval);
                         onEnterRoomRsp(userEventRsp);
+                        queryTreasureInfo();
+
                     } else if ("getLivingInfo".equals(funcName)) {
                         GetLivingInfoRsp getLivingInfoRsp = uniPacket.getByClass("tRsp", new GetLivingInfoRsp());
                         System.out.println(CommonLib.display(getLivingInfoRsp));
@@ -388,7 +386,12 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         EventBus.getDefault().post(liveInfoByUidRsp);
                     } else if ("getTreasureBoxInfo".equals(funcName)) {
                         GetTreasureBoxInfoRsp treasureBoxInfoRsp = uniPacket.getByClass("tRsp", new GetTreasureBoxInfoRsp());
+                        System.out.println(CommonLib.display(treasureBoxInfoRsp));
                         EventBus.getDefault().post(treasureBoxInfoRsp);
+                    } else if ("queryTreasure".equals(funcName)) {
+                        QueryTreasureInfoRsp queryTreasureInfoRsp = uniPacket.getByClass("tRsp", new QueryTreasureInfoRsp());
+                        System.out.println(CommonLib.display(queryTreasureInfoRsp));
+                        EventBus.getDefault().post(queryTreasureInfoRsp);
                     }
                     break;
                 case 7:
@@ -454,6 +457,11 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                             showNotification("频道信息", "正在查询频道信息");
                             WupService.getInstance().getLivingInfo(PRESENTER_ID);
                         }
+                    } else if (pushMessage.iUri == 6604) {
+                        TreasureUpdateNotice treasureUpdateNotice = new TreasureUpdateNotice();
+                        treasureUpdateNotice.readFrom(jceInputStream);
+                        System.out.println(CommonLib.display(treasureUpdateNotice));
+
                     }
                     break;
                 case 9:
@@ -650,5 +658,14 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         outputStream = CommonLib.out();
         webSocketCommand.writeTo(outputStream);
         mWebSocket.send(ByteString.of(outputStream.toByteArray()));
+    }
+
+    private void queryTreasureInfo() {
+        WupService.getInstance().getTreasureBoxInfo(PRESENTER_ID);
+        queryTreasureCountDown();
+    }
+
+    private void queryTreasureCountDown() {
+        WupService.getInstance().queryTreasureCountDown(mChannelId, mSubChannelId, PRESENTER_ID, mLiveId, 5);
     }
 }

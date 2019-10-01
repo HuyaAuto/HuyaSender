@@ -7,7 +7,10 @@ package com.skytalking.huya;
 
 import com.intellij.ide.util.PropertiesComponent;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.UUID;
 
 public class WupService {
@@ -283,5 +286,46 @@ public class WupService {
         consumeGiftReq.lPresenterUid = pid;
 
         WupHelper.send("consumeGift", "PropsUIServer", consumeGiftReq);
+    }
+
+    public void queryTreasureCountDown(long sid, long subsid, long pid, long roomId, int fromType) {
+        QueryTreasureInfoReq queryTreasureInfoReq = new QueryTreasureInfoReq();
+        queryTreasureInfoReq.tId = getUserId();
+        queryTreasureInfoReq.lSid = sid;
+        queryTreasureInfoReq.lSubSid = subsid;
+        queryTreasureInfoReq.lPid = pid;
+        queryTreasureInfoReq.lRoomId = roomId;
+        queryTreasureInfoReq.iFromType = fromType;
+        WupHelper.send("queryTreasure", "liveui", queryTreasureInfoReq);
+    }
+
+    public void awardBox(long sid, long subsid, int taskId, long pid) {
+        AwardBoxPrizeReq awardBoxPrizeReq = new AwardBoxPrizeReq();
+        awardBoxPrizeReq.tId = getUserId();
+        awardBoxPrizeReq.lSid = sid;
+        awardBoxPrizeReq.lSubSid = subsid;
+        awardBoxPrizeReq.iTaskId = taskId;
+        awardBoxPrizeReq.sPassport = "yzd";
+        awardBoxPrizeReq.iFromType = 6;
+        awardBoxPrizeReq.fVersion = 4;
+        awardBoxPrizeReq.sTime = new Date().toString();
+        awardBoxPrizeReq.lPid = pid;
+        awardBoxPrizeReq.sMd5 = md5(awardBoxPrizeReq.tId.lUid + awardBoxPrizeReq.lSid + awardBoxPrizeReq.lSubSid + awardBoxPrizeReq.iTaskId + awardBoxPrizeReq.sPassport + awardBoxPrizeReq.iFromType + awardBoxPrizeReq.fVersion + awardBoxPrizeReq.sTime);
+        awardBoxPrizeReq.iPrizeType = 0;
+        WupHelper.send("awardBoxPrize", "huyauserui", awardBoxPrizeReq);
+    }
+
+    public static String md5(String text) {
+        try {
+            // 生成一个MD5加密计算摘要
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            // 计算md5函数
+            md.update(text.getBytes());
+            // digest()最后确定返回md5 hash值，返回值为8为字符串。因为md5 hash值是16位的hex值，实际上就是8位的字符
+            // BigInteger函数则将8位的字符串转换成16位hex值，用字符串来表示；得到字符串形式的hash值
+            return new BigInteger(1, md.digest()).toString(16).toLowerCase();
+        } catch (Exception e) {
+            throw new RuntimeException("MD5加密出现错误");
+        }
     }
 }
