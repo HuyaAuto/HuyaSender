@@ -21,11 +21,13 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 
 public class HuyaMonitorServiceImpl implements HuyaMonitorService {
-    public static long PRESENTER_ID = 961825702;
+        public static long PRESENTER_ID = 961825702;
+//    public static long PRESENTER_ID = 1571877666;
     private final Logger logger;
 
     public HuyaMonitorServiceImpl() {
@@ -53,9 +55,13 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
     private boolean mSayHello = false;
     private boolean mBroadcastEnabled;
     private boolean mIsLiving = false;
-
+    private int mAttendeeCount;
     private Disposable mConnectDisposable;
     private int mCurrentUriIndex = 0;
+    private long mLastHeartBeatTime = 0;
+    private int mLastHeartElapseTime = 0;
+    private int mTreasureBoxIndex = 0;
+    private GetWebdbUserInfoRsp getWebdbUserInfoRsp;
     private Runnable mHeartBeatRunnable = new Runnable() {
         public void run() {
             if (mWebSocket != null) {
@@ -69,10 +75,16 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                 userHeartBeatReq.lTid = mChannelId;
                 userHeartBeatReq.lSid = mSubChannelId;
                 userHeartBeatReq.bWatchVideo = true;
-                userHeartBeatReq.iAttendee = 1;
+                userHeartBeatReq.iAttendee = mAttendeeCount;
                 userHeartBeatReq.lPid = PRESENTER_ID;
+                userHeartBeatReq.eLineType = 8;
+                userHeartBeatReq.iFps = 30;
+                userHeartBeatReq.iLastHeartElapseTime = mLastHeartElapseTime;
+                mLastHeartBeatTime = System.currentTimeMillis();
                 logger.info("heart beat send");
+                System.out.println("heart beat send");
                 WupHelper.send("OnUserHeartBeat", "onlineui", userHeartBeatReq);
+//                testVideo();
             }
 
             if (mHeartBeatDisposable != null && !mHeartBeatDisposable.isDisposed()) {
@@ -127,6 +139,10 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         enterLivingRoom();
     }
 
+    private void fireFirstHeartBeat() {
+
+    }
+
     private void enterLivingRoom() {
         logger.info("enter room");
         UserEventReq userEventReq = new UserEventReq();
@@ -138,6 +154,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         userEventReq.lPid = PRESENTER_ID;
         userEventReq.bAnonymous = false;
         userEventReq.eTemplateType = 1;
+        userEventReq.bWatchVideo = true;
         UniPacket uniPacket = WupHelper.buildUniPacket("OnUserEvent", "onlineui", userEventReq);
         sendPacket(uniPacket);
     }
@@ -226,15 +243,15 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             mRegisterTimeoutDisposable.dispose();
         }
         if (this.mWebSocket != null) {
-            WebSocketCommand var1 = new WebSocketCommand();
-            var1.iCmdType = 8;
-            WSDeRegisterReq var2 = new WSDeRegisterReq();
-            var2.iDeRegisterType = 2;
+            WebSocketCommand socketCommand = new WebSocketCommand();
+            socketCommand.iCmdType = 8;
+            WSDeRegisterReq deRegisterReq = new WSDeRegisterReq();
+            deRegisterReq.iDeRegisterType = 2;
             JceOutputStream var3 = CommonLib.out();
-            var2.writeTo(var3);
-            var1.vData = var3.toByteArray();
+            deRegisterReq.writeTo(var3);
+            socketCommand.vData = var3.toByteArray();
             JceOutputStream var4 = CommonLib.out();
-            var1.writeTo(var4);
+            socketCommand.writeTo(var4);
             this.mWebSocket.send(ByteString.of(var4.toByteArray()));
         }
     }
@@ -249,6 +266,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             mConnectSuccessful = false;
             mLoginSuccessful = false;
             mIsLiving = false;
+            mTreasureBoxIndex = 0;
+            mLastHeartBeatTime = 0;
             System.out.println("websocket closed : " + var3);
             reconnect();
         }
@@ -257,6 +276,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             mConnectSuccessful = false;
             mLoginSuccessful = false;
             mIsLiving = false;
+            System.out.println("websocket closing : " + var3);
             logger.info("websocket closing : " + var3);
             if (mHeartBeatDisposable != null && !mHeartBeatDisposable.isDisposed()) {
                 mHeartBeatDisposable.dispose();
@@ -267,7 +287,9 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             mConnectSuccessful = false;
             mLoginSuccessful = false;
             mIsLiving = false;
+            System.out.println("websocket failure : " + var2.toString());
             logger.info("websocket failure : " + var2.toString());
+            var2.printStackTrace();
             if (mHeartBeatDisposable != null && !mHeartBeatDisposable.isDisposed()) {
                 mHeartBeatDisposable.dispose();
             }
@@ -363,10 +385,9 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         UserEventRsp userEventRsp = uniPacket.getByClass("tRsp", new UserEventRsp());
                         System.out.println(CommonLib.display(userEventRsp));
                         EventBus.getDefault().post(userEventRsp);
-                        startUserHeartbeat(userEventRsp.iUserHeartBeatInterval);
                         onEnterRoomRsp(userEventRsp);
-                        queryTreasureInfo();
-
+                        startUserHeartbeat(userEventRsp.iUserHeartBeatInterval);
+                        queryUserInfo();
                     } else if ("getLivingInfo".equals(funcName)) {
                         GetLivingInfoRsp getLivingInfoRsp = uniPacket.getByClass("tRsp", new GetLivingInfoRsp());
                         System.out.println(CommonLib.display(getLivingInfoRsp));
@@ -388,10 +409,24 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         GetTreasureBoxInfoRsp treasureBoxInfoRsp = uniPacket.getByClass("tRsp", new GetTreasureBoxInfoRsp());
                         System.out.println(CommonLib.display(treasureBoxInfoRsp));
                         EventBus.getDefault().post(treasureBoxInfoRsp);
+                        onReceiveTreasureBoxInfo(treasureBoxInfoRsp);
                     } else if ("queryTreasure".equals(funcName)) {
                         QueryTreasureInfoRsp queryTreasureInfoRsp = uniPacket.getByClass("tRsp", new QueryTreasureInfoRsp());
                         System.out.println(CommonLib.display(queryTreasureInfoRsp));
                         EventBus.getDefault().post(queryTreasureInfoRsp);
+                    } else if ("OnUserHeartBeat".equals(funcName)) {
+                        mLastHeartElapseTime = (int) (System.currentTimeMillis() - mLastHeartBeatTime);
+                    } else if ("finishTaskNotice".equals(funcName)) {
+                        FinishTaskNoticeRsp finishTaskNoticeRsp = uniPacket.getByClass("tRsp", new FinishTaskNoticeRsp());
+                        System.out.println(CommonLib.display(finishTaskNoticeRsp));
+                        EventBus.getDefault().post(finishTaskNoticeRsp);
+                        onReceiveFinishTaskNotice(finishTaskNoticeRsp);
+                    } else if ("getWebdbUserInfo".equals(funcName)) {
+                        getWebdbUserInfoRsp = uniPacket.getByClass("tRsp", new GetWebdbUserInfoRsp());
+                        queryTreasureInfo();
+                    } else if ("videoGatewayProxy2VGPing".equals(funcName)) {
+                        VideoGatewayProxy2VGPingRsp tRsp = uniPacket.getByClass("tRsp", new VideoGatewayProxy2VGPingRsp());
+                        System.out.println("local time:" + tRsp.lLocalTime);
                     }
                     break;
                 case 7:
@@ -418,6 +453,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     } else if (pushMessage.iUri == 8006L) {
                         AttendeeCountNotice attendeeCountNotice = new AttendeeCountNotice();
                         attendeeCountNotice.readFrom(jceInputStream);
+                        mAttendeeCount = attendeeCountNotice.iAttendeeCount;
                         EventBus.getDefault().post(attendeeCountNotice);
                     } else if (pushMessage.iUri == 10041L) {
                         AuditorRoleChangeNotice auditorRoleChangeNotice = new AuditorRoleChangeNotice();
@@ -495,6 +531,15 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     }
                 }
                 break;
+                case 19: {
+                    JceInputStream inputStream = CommonLib.in(var3.vData);
+                    WSUnRegisterGroupRsp unRegisterGroupRsp = new WSUnRegisterGroupRsp();
+                    unRegisterGroupRsp.readFrom(inputStream);
+                    System.out.println(CommonLib.display(unRegisterGroupRsp));
+                    if (mChannelId != 0 && mSubChannelId != 0) {
+                        register(mChannelId, mSubChannelId);
+                    }
+                }
             }
         }
 
@@ -504,6 +549,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             performCookieLogin();
         }
     }
+
 
     private void startUserHeartbeat(int interval) {
         this.mHeartbeatInterval = interval;
@@ -592,7 +638,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
             mLiveId = beginLiveNotice.lLiveId;
             mChannelId = beginLiveNotice.lChannelId;
             mSubChannelId = beginLiveNotice.lSubChannelId;
-            register(beginLiveNotice.lChannelId, beginLiveNotice.lSubChannelId);
+            unRegisterGroup();
         }
     }
 
@@ -621,8 +667,13 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         if (isLiving && !mSayHello) {
             mSayHello = true;
             // WupService.getInstance().sendMessage(mChannelId, mSubChannelId, PRESENTER_ID, "");
-            startUserHeartbeat(60);
         }
+    }
+
+    private void testVideo() {
+        VideoGatewayProxy2VGPingReq videoGatewayProxy2VGPingReq = new VideoGatewayProxy2VGPingReq();
+        videoGatewayProxy2VGPingReq.lLocalTime = System.currentTimeMillis() / 1000;
+        WupHelper.send("videoGatewayProxy2VGPing", "videogateway", videoGatewayProxy2VGPingReq);
     }
 
     public void onRMessageNotify(RMessageNotify rMessageNotify) {
@@ -660,12 +711,68 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         mWebSocket.send(ByteString.of(outputStream.toByteArray()));
     }
 
-    private void queryTreasureInfo() {
-        WupService.getInstance().getTreasureBoxInfo(PRESENTER_ID);
-        queryTreasureCountDown();
+    private void unRegisterGroup() {
+        WSUnRegisterGroupReq wsUnRegisterGroupReq = new WSUnRegisterGroupReq();
+        JceOutputStream outputStream = CommonLib.out();
+        wsUnRegisterGroupReq.writeTo(outputStream);
+        WebSocketCommand socketCommand = new WebSocketCommand();
+        socketCommand.iCmdType = 18;
+        socketCommand.vData = outputStream.toByteArray();
+        outputStream = CommonLib.out();
+        socketCommand.writeTo(outputStream);
+        mWebSocket.send(ByteString.of(outputStream.toByteArray()));
     }
 
-    private void queryTreasureCountDown() {
-        WupService.getInstance().queryTreasureCountDown(mChannelId, mSubChannelId, PRESENTER_ID, mLiveId, 5);
+    private void queryUserInfo() {
+        WupService.getInstance().getWebdbUserInfo();
+    }
+
+    private void queryTreasureInfo() {
+        WupService.getInstance().getTreasureBoxInfo(PRESENTER_ID);
+    }
+
+    private void onReceiveTreasureBoxInfo(GetTreasureBoxInfoRsp treasureBoxInfoRsp) {
+        List<BoxTaskInfo> vBoxTaskInfo = treasureBoxInfoRsp.vBoxTaskInfo;
+        BoxTaskInfo boxTaskInfo;
+        for (int i = 0; i < vBoxTaskInfo.size(); i++) {
+            boxTaskInfo = vBoxTaskInfo.get(i);
+            if (boxTaskInfo.iStat == 0 && mTreasureBoxIndex == 0) {
+                mTreasureBoxIndex = boxTaskInfo.iTaskId;
+                break;
+                //未开启的宝箱
+            }
+        }
+
+//        startTreasureBoxLopper();
+    }
+
+    private Runnable mTreasureBoxNoticeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            System.out.println("finish treasure task :" + mTreasureBoxIndex + "," + getWebdbUserInfoRsp.tUserInfo.sPassport);
+            WupService.getInstance().finishTaskNotice(mChannelId, mSubChannelId, PRESENTER_ID, mTreasureBoxIndex, getWebdbUserInfoRsp.tUserInfo.sPassport);
+        }
+    };
+
+    private void onReceiveFinishTaskNotice(FinishTaskNoticeRsp finishTaskNoticeRsp) {
+        if (finishTaskNoticeRsp.iRspCode == 0) {
+            mTreasureBoxIndex = (++finishTaskNoticeRsp.iTaskId);
+//            startTreasureBoxLopper();
+        }
+    }
+
+    private void startTreasureBoxLopper() {
+        if (mTreasureBoxIndex < 1 || mTreasureBoxIndex > 6) {
+            System.out.println("所有宝箱都计时完毕,将开启所有宝箱.");
+            openTreasureBox();
+        } else {
+            long cdTime = (mTreasureBoxIndex == 1 ? 3 * 60 : 10 * 60) + 5;
+            System.out.println("start treasure looper in:" + cdTime + ",taskId:" + mTreasureBoxIndex);
+            Schedulers.io().scheduleDirect(mTreasureBoxNoticeRunnable, cdTime, TimeUnit.SECONDS);
+        }
+    }
+
+    private void openTreasureBox() {
+
     }
 }

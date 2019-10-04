@@ -1,17 +1,12 @@
 package com.skytalking.windows;
 
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.ui.popup.JBPopupFactory;
-import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
-import com.intellij.ui.components.JBScrollPane;
-import com.qq.taf.jce.JceStruct;
 import com.skytalking.huya.CommonLib;
 import com.skytalking.huya.RMessage;
 
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -53,6 +48,7 @@ public class ReportMessageDialog {
         @Override
         public void mousePressed(MouseEvent e) {
             int location = message_list.locationToIndex(e.getPoint());
+            if (location < 0) return;
             message_list.setSelectedIndex(location);
             RMessage rMessage = rMessageDefaultListModel.getElementAt(location);
             if (rMessage != null) {

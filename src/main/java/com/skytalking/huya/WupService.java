@@ -10,7 +10,6 @@ import com.intellij.ide.util.PropertiesComponent;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.UUID;
 
 public class WupService {
@@ -180,16 +179,19 @@ public class WupService {
         mUserId.lUid = lUid;
         mUserId.sGuid = sGuid;
         mUserId.sCookie = "udb_uid=" + lUid + "; udb_biztoken=" + sBiztoken;
+//        mUserId.sCookie = "vplayer_sbanner_77259038_2622305892=1; vplayer_sbanner_0_0=1; __yamid_tt1=0.022256063163378137; __yamid_new=C89EE9B614B00001E7DB80F01A3E151A; udb_guiddata=96e47e91c3f44c90a3c361588f6fbf82; udb_accdata=undefined; SoundValue=0.50; alphaValue=0.80; guid=0acf6cbbd814935d6c79852e862ea338; sdid=; __yasmid=0.022256063163378137; Hm_lvt_51700b6c722f5bb4cf39906a596ea41f=1569996594,1569997273,1569997771,1570004170; udb_passdata=3; PHPSESSID=sq698oqu7ljdar02u9s6pv2mk0; web_qrlogin_confirm_id=6d22f79f-fb6b-4614-965e-6a0456683283; udb_uid=2386489680; yyuid=2386489680; udb_passport=newqq_o1d9y3ofs; username=newqq_o1d9y3ofs; udb_version=1.0; udb_origin=0; udb_status=1; __yaoldyyuid=2386489680; _yasids=__rootsid%3DC89F3FDA039000013A32FBD6D5601CF9; udb_biztoken=AQClulFkDDPq5-hiRotNxu9my1qgypy2wF9vJbuNFfEyYh6_vYLdoaw7VfUx3ORv9KDjQecCO_qY-HE5W8AL810PicjYVlyKeDnKnbC2a2VGjfWgpJ5G-PYEDscGymyq4oBKEb3-uemhZTuAe47oLUdh1ZwyqhFX8a1iUqn6NLyfvJdI5GVFkj_wza02sXBnQs8br2f_GG40sQweIqclQw_gDd9sfO0EQr4ItjEq29ONYkmu-0BRwZ7crT0kSZDNaQ4AUQeyE_IwieGlP2NfSLEp-0MelnAT2c3Tn9aOIGEktLzyadMROPYZ5gSklkLF0MkwVPzZOc1LdygwS4qcoOdy; isInLiveRoom=true; Hm_lpvt_51700b6c722f5bb4cf39906a596ea41f=1570020743; h_unt=1570080870";
         mUserId.sHuYaUA = "webh5&" + "1.0" + "&websocket";
+//        mUserId.sHuYaUA = "webh5&1909301546&websocket";
         mUserId.iTokenType = 0;
+//        mUserId.sGuid="0acf6cbbd814935d6c79852e862ea338";
 //        System.out.println("sCookies:" + mUserId.sCookie);
 //        System.out.println("guid:" + mUserId.sGuid);
         return this.mUserId;
     }
 
-    public void getWebdbUserInfo(long var1) {
+    public void getWebdbUserInfo() {
         GetWebdbUserInfoReq var3 = new GetWebdbUserInfoReq();
-        var3.lUid = var1;
+        var3.lUid = getUserId().lUid;
         WupHelper.send(var3, "getWebdbUserInfo", "liveui", new GetWebdbUserInfoRsp(), false);
     }
 
@@ -299,16 +301,16 @@ public class WupService {
         WupHelper.send("queryTreasure", "liveui", queryTreasureInfoReq);
     }
 
-    public void awardBox(long sid, long subsid, int taskId, long pid) {
+    public void awardBox(long sid, long subsid, int taskId, long pid, String passport) {
         AwardBoxPrizeReq awardBoxPrizeReq = new AwardBoxPrizeReq();
         awardBoxPrizeReq.tId = getUserId();
         awardBoxPrizeReq.lSid = sid;
         awardBoxPrizeReq.lSubSid = subsid;
         awardBoxPrizeReq.iTaskId = taskId;
-        awardBoxPrizeReq.sPassport = "yzd";
+        awardBoxPrizeReq.sPassport = passport;
         awardBoxPrizeReq.iFromType = 6;
         awardBoxPrizeReq.fVersion = 4;
-        awardBoxPrizeReq.sTime = new Date().toString();
+        awardBoxPrizeReq.sTime = String.valueOf(System.currentTimeMillis());
         awardBoxPrizeReq.lPid = pid;
         awardBoxPrizeReq.sMd5 = md5(awardBoxPrizeReq.tId.lUid + awardBoxPrizeReq.lSid + awardBoxPrizeReq.lSubSid + awardBoxPrizeReq.iTaskId + awardBoxPrizeReq.sPassport + awardBoxPrizeReq.iFromType + awardBoxPrizeReq.fVersion + awardBoxPrizeReq.sTime);
         awardBoxPrizeReq.iPrizeType = 0;
@@ -323,9 +325,27 @@ public class WupService {
             md.update(text.getBytes());
             // digest()最后确定返回md5 hash值，返回值为8为字符串。因为md5 hash值是16位的hex值，实际上就是8位的字符
             // BigInteger函数则将8位的字符串转换成16位hex值，用字符串来表示；得到字符串形式的hash值
-            return new BigInteger(1, md.digest()).toString(16).toLowerCase();
+            return new BigInteger(1, md.digest()).toString(16);
         } catch (Exception e) {
             throw new RuntimeException("MD5加密出现错误");
         }
+    }
+
+    public void finishTaskNotice(long sid, long subsid, long pid, int taskId, String passport) {
+        FinishTaskNoticeReq finishTaskNoticeReq = new FinishTaskNoticeReq();
+        finishTaskNoticeReq.tId = getUserId();
+        finishTaskNoticeReq.lSid = sid;
+        finishTaskNoticeReq.lSubSid = subsid;
+        finishTaskNoticeReq.lPid = pid;
+        finishTaskNoticeReq.iTaskId = taskId;
+        finishTaskNoticeReq.sPassport = passport;
+        finishTaskNoticeReq.iFromType = 6;
+        finishTaskNoticeReq.fVersion = 1.1f;
+        finishTaskNoticeReq.sTime = String.valueOf(System.currentTimeMillis());
+        String s = finishTaskNoticeReq.tId.lUid + finishTaskNoticeReq.lSid + finishTaskNoticeReq.lSubSid + finishTaskNoticeReq.iTaskId + finishTaskNoticeReq.sPassport + finishTaskNoticeReq.iFromType + finishTaskNoticeReq.fVersion + finishTaskNoticeReq.sTime;
+        finishTaskNoticeReq.sMd5 = md5(s);
+        System.out.println("P:" + s);
+        System.out.println("md5" + finishTaskNoticeReq.sMd5);
+        WupHelper.send("finishTaskNotice", "huyauserui", finishTaskNoticeReq);
     }
 }

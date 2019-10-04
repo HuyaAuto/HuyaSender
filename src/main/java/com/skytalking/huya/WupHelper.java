@@ -14,6 +14,7 @@ import okhttp3.Request.Builder;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class WupHelper {
 
@@ -30,12 +31,15 @@ public class WupHelper {
         HuyaMonitorService.getInstance().sendPacket(buildUniPacket(func, servant, jceStruct));
     }
 
+    private static AtomicInteger reqId = new AtomicInteger(0);
+
     public static UniPacket buildUniPacket(String func, String servant, JceStruct jceStruct) {
         UniPacket uniPacket = new UniPacket();
         uniPacket.useVersion3();
         uniPacket.setFuncName(func);
         uniPacket.setServantName(servant);
         uniPacket.setEncodeName("UTF-8");
+        uniPacket.setRequestId(reqId.incrementAndGet());
         uniPacket.put("tReq", jceStruct);
         return uniPacket;
     }

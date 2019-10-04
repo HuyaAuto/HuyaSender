@@ -1,12 +1,11 @@
 package com.skytalking.windows;
 
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ActionToolbar;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ModalityState;
-import com.intellij.openapi.project.DumbAwareAction;
-import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.ui.components.*;
@@ -22,10 +21,8 @@ import com.skytalking.services.HuyaMonitorService;
 import icons.PluginIcons;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.*;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
@@ -161,7 +158,7 @@ public class HuyaMonitorWindow implements Disposable {
             Long senderUid = (Long) componentPopupMenu.getClientProperty("sender_uid");
             if (content != null && senderUid != null) {
                 HuyaMonitorService monitorService = HuyaMonitorService.getInstance();
-                WupService.getInstance().muteRoomUser(content, duration, monitorService.getChannelId(), senderUid, monitorService.getSubChannelId(), type, 1);
+                WupService.getInstance().muteRoomUser(content, duration, monitorService.getPresenterId(), senderUid, monitorService.getSubChannelId(), type, 1);
             }
         }
     }
@@ -245,12 +242,14 @@ public class HuyaMonitorWindow implements Disposable {
     private void notifyMessage(JceStruct jceStruct) {
         Application application = ApplicationManager.getApplication();
         application.invokeLater(() -> {
-            if (defaultListModel.size() > maxCount) {
-                defaultListModel.remove(0);
-            }
-            defaultListModel.addElement(jceStruct);
-            if (toolWindow.isVisible() && !mScrollerLocked) {
-                barrage_list.ensureIndexIsVisible(defaultListModel.getSize() - 1);
+            if (toolWindow.isActive() && application.isActive() && toolWindow.isVisible()) {
+                if (defaultListModel.size() > maxCount) {
+                    defaultListModel.remove(0);
+                }
+                defaultListModel.addElement(jceStruct);
+                if (!mScrollerLocked) {
+                    barrage_list.ensureIndexIsVisible(defaultListModel.getSize() - 1);
+                }
             }
         });
     }
@@ -283,6 +282,17 @@ public class HuyaMonitorWindow implements Disposable {
         windowPanel.setContent(this.content);
         contentManager.addContent(content);
         contentManager.setSelectedContent(content);
+        toolWindow.getComponent().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                System.out.println("----------------------------------------");
+            }
+
+            @Override
+            public void componentShown(ComponentEvent e) {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            }
+        });
 //        ApplicationManager.getApplication().executeOnPooledThread(new Runnable() {
 //            @Override
 //            public void run() {
