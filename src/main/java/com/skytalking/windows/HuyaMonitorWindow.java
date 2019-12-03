@@ -49,7 +49,7 @@ public class HuyaMonitorWindow implements Disposable {
     private JButton text_send;
     private final DefaultListModel<JceStruct> defaultListModel;
     private boolean mScrollerLocked = false;
-    private int maxCount = 200;
+    private int maxCount = 500;
     private int tempMaxCount = 40;
     private ActionToolbar actionToolbar;
     private PreviewComponent windowPanel;
@@ -242,14 +242,23 @@ public class HuyaMonitorWindow implements Disposable {
     private void notifyMessage(JceStruct jceStruct) {
         Application application = ApplicationManager.getApplication();
         application.invokeLater(() -> {
-            if (toolWindow.isActive() && application.isActive() && toolWindow.isVisible()) {
+            if (application.isActive() && toolWindow.isVisible() && toolWindow.isActive()) {
+                if (tempList != null) {
+                    defaultListModel.addAll(tempList);
+                    tempList.clear();
+                }
                 if (defaultListModel.size() > maxCount) {
-                    defaultListModel.remove(0);
+                    int removeCount = defaultListModel.size() - maxCount;
+                    for (int i = 0; i < removeCount; i++) {
+                        defaultListModel.remove(0);
+                    }
                 }
                 defaultListModel.addElement(jceStruct);
                 if (!mScrollerLocked) {
                     barrage_list.ensureIndexIsVisible(defaultListModel.getSize() - 1);
                 }
+            } else {
+                tempList.add(jceStruct);
             }
         });
     }

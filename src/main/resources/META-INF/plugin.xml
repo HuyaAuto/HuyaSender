@@ -3,7 +3,7 @@
     <name>HuyaMonitor</name>
     <vendor email="support@skytalking.com" url="http://www.skytalking.com">skytalking</vendor>
     <idea-version until-build="193.*" since-build="192"/>
-    <version>1.0</version>
+    <version>1.1</version>
     <description><![CDATA[
      To validate the data entered into the dialog, you can override the doValidate() method.
      The method will be called automatically by timer. If the currently entered data is valid,

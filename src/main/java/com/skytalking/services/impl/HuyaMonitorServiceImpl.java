@@ -26,8 +26,8 @@ import java.util.concurrent.TimeUnit;
 
 
 public class HuyaMonitorServiceImpl implements HuyaMonitorService {
-        public static long PRESENTER_ID = 961825702;
-//    public static long PRESENTER_ID = 1571877666;
+    public static long PRESENTER_ID = 961825702;
+    //    public static long PRESENTER_ID = 1571877666;
     private final Logger logger;
 
     public HuyaMonitorServiceImpl() {
@@ -62,6 +62,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
     private int mLastHeartElapseTime = 0;
     private int mTreasureBoxIndex = 0;
     private GetWebdbUserInfoRsp getWebdbUserInfoRsp;
+    private List<String> groupId;
     private Runnable mHeartBeatRunnable = new Runnable() {
         public void run() {
             if (mWebSocket != null) {
@@ -211,6 +212,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
     public void register(long tid, long sid) {
         mChannelId = tid;
         mSubChannelId = sid;
+        showNotification("频道信息", "正在注册频道信息");
         if (this.mWebSocket == null) {
             this.connect();
         } else {
@@ -239,10 +241,14 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
     }
 
     public void unregister() {
+        showNotification("频道信息", "正在反注册频道信息");
         if (mRegisterTimeoutDisposable != null && !mRegisterTimeoutDisposable.isDisposed()) {
             mRegisterTimeoutDisposable.dispose();
         }
         if (this.mWebSocket != null) {
+            mChannelId = 0;
+            mSubChannelId = 0;
+            mIsLiving = false;
             WebSocketCommand socketCommand = new WebSocketCommand();
             socketCommand.iCmdType = 8;
             WSDeRegisterReq deRegisterReq = new WSDeRegisterReq();
@@ -394,13 +400,15 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         mLiveId = getLivingInfoRsp.tNotice.lLiveId;
                         mChannelId = getLivingInfoRsp.tNotice.lChannelId;
                         mSubChannelId = getLivingInfoRsp.tNotice.lSubChannelId;
-                        if (getLivingInfoRsp.bIsLiving == 1) {
-                            register(mChannelId, mSubChannelId);
-                        } else {
-                            registerGroup();
+                        if (mLoginSuccessful) {
+                            if (getLivingInfoRsp.bIsLiving == 1) {
+                                register(mChannelId, mSubChannelId);
+                            } else {
+                                registerGroup();
+                            }
+                            showNotification("频道信息", "查询频道信息成功,正在注册频道信息");
                         }
                         EventBus.getDefault().post(getLivingInfoRsp);
-                        showNotification("频道信息", "查询频道信息成功,正在注册频道信息");
                     } else if ("getLiveInfoListsByUids".equals(funcName)) {
                         LiveInfoByUidRsp liveInfoByUidRsp = uniPacket.getByClass("tRsp", new LiveInfoByUidRsp());
                         System.out.println(CommonLib.display(liveInfoByUidRsp));
@@ -437,6 +445,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     if (pushMessage.iUri == 1400L) {
                         MessageNotice messageNotice = new MessageNotice();
                         messageNotice.readFrom(jceInputStream);
+                        messageNotice.time = System.currentTimeMillis();
                         EventBus.getDefault().post(messageNotice);
 //                        System.out.println(CommonLib.display(messageNotice));
                         logger.info(CommonLib.getMessageNoticeContent(messageNotice));
@@ -449,6 +458,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         BeginLiveNotice beginLiveNotice = new BeginLiveNotice();
                         beginLiveNotice.readFrom(jceInputStream);
                         EventBus.getDefault().post(beginLiveNotice);
+                        showNotification("频道信息", "开始直播通知,正在查询频道信息");
                         onPresenterBeginLive(beginLiveNotice);
                     } else if (pushMessage.iUri == 8006L) {
                         AttendeeCountNotice attendeeCountNotice = new AttendeeCountNotice();
@@ -479,8 +489,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         ReplayPresenterInLiveNotify presenterInLiveNotify = new ReplayPresenterInLiveNotify();
                         presenterInLiveNotify.readFrom(jceInputStream);
                         if (presenterInLiveNotify.lUid == PRESENTER_ID && !mIsLiving) {
-                            showNotification("频道信息", "正在查询频道信息");
-                            WupService.getInstance().getLivingInfo(PRESENTER_ID);
+                            showNotification("频道信息", "重放已进入直播,正在查询频道信息");
+                            unRegisterGroup();
                         }
                     } else if (pushMessage.iUri == 7504) {
                         PresenterEndGameNotice presenterEndGameNotice = new PresenterEndGameNotice();
@@ -490,8 +500,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                         LiveRoomTransferNotice liveRoomTransferNotice = new LiveRoomTransferNotice();
                         liveRoomTransferNotice.readFrom(jceInputStream);
                         if (liveRoomTransferNotice.tNotice.lPresenterUid == PRESENTER_ID && !mIsLiving) {
-                            showNotification("频道信息", "正在查询频道信息");
-                            WupService.getInstance().getLivingInfo(PRESENTER_ID);
+                            showNotification("频道信息", "直播间状态发送改变,正在查询频道信息");
+                            unRegisterGroup();
                         }
                     } else if (pushMessage.iUri == 6604) {
                         TreasureUpdateNotice treasureUpdateNotice = new TreasureUpdateNotice();
@@ -503,7 +513,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                 case 9:
                     WSDeRegisterRsp wsDeRegisterRsp = new WSDeRegisterRsp();
                     wsDeRegisterRsp.readFrom(new JceInputStream(var3.vData));
-                    logger.info("resister rsp:" + CommonLib.display(wsDeRegisterRsp));
+                    logger.info("unresister rsp:" + CommonLib.display(wsDeRegisterRsp));
+                    registerGroup();
                     break;
                 case 11: {//EWSCmdS2C_VerifyCookieRsp
                     JceInputStream in = CommonLib.in(var3.vData);
@@ -512,11 +523,11 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     mLoginSuccessful = wsVerifyCookieRsp.iValidate == 0;
                     if (!mLoginSuccessful) {
                         PropertiesComponent.getInstance().setValue("biztoken", null);
+                        WupService.getInstance().getLivingInfo(PRESENTER_ID);
                     }
                     logger.info("VerifyCookie Result:" + mLoginSuccessful);
                     EventBus.getDefault().post(new SocketLoginFinished(mLoginSuccessful));
-                    WupService.getInstance().getLivingInfo(PRESENTER_ID);
-                    showNotification("用户登录", mLoginSuccessful ? "登录成功,正在查询频道信息" : "登录失败,正在查询频道信息");
+                    showNotification("用户登录", mLoginSuccessful ? "登录成功,正在查询频道信息" : "登录失败");
                 }
                 break;
                 case 17: {
@@ -524,6 +535,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     WSRegisterGroupRsp wsRegisterGroupRsp = new WSRegisterGroupRsp();
                     wsRegisterGroupRsp.readFrom(inputStream);
                     System.out.println(CommonLib.display(wsRegisterGroupRsp));
+                    groupId = wsRegisterGroupRsp.vSupportP2PGroupId;
                     if (wsRegisterGroupRsp.iResCode == 0) {
                         enterChannel(mChannelId, mSubChannelId);
                     } else {
@@ -536,8 +548,12 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
                     WSUnRegisterGroupRsp unRegisterGroupRsp = new WSUnRegisterGroupRsp();
                     unRegisterGroupRsp.readFrom(inputStream);
                     System.out.println(CommonLib.display(unRegisterGroupRsp));
-                    if (mChannelId != 0 && mSubChannelId != 0) {
-                        register(mChannelId, mSubChannelId);
+                    if (mLoginSuccessful) {
+                        if (mChannelId != 0 && mSubChannelId != 0) {
+                            register(mChannelId, mSubChannelId);
+                        } else {
+                            WupService.getInstance().getLivingInfo(PRESENTER_ID);
+                        }
                     }
                 }
             }
@@ -635,6 +651,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         new Notification("huya", "开播提醒", "[" + beginLiveNotice.sNick + "] 已开播,直播游戏:[" + beginLiveNotice.sGameName + "]"
                 + ",直播内容:[" + beginLiveNotice.sLiveDesc + "]", NotificationType.WARNING).notify(null);
         if (beginLiveNotice.lPresenterUid == PRESENTER_ID) {
+            mIsLiving = true;
             mLiveId = beginLiveNotice.lLiveId;
             mChannelId = beginLiveNotice.lChannelId;
             mSubChannelId = beginLiveNotice.lSubChannelId;
@@ -647,8 +664,8 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
         String content = CommonLib.getEndLiveContent(endLiveNotice);
         if (endLiveNotice.lPresenterUid == PRESENTER_ID) {
             mIsLiving = false;
+            unregister();
             new Notification("huya", "下播提醒", content, NotificationType.INFORMATION).notify(null);
-            registerGroup();
         }
     }
 
@@ -713,6 +730,7 @@ public class HuyaMonitorServiceImpl implements HuyaMonitorService {
 
     private void unRegisterGroup() {
         WSUnRegisterGroupReq wsUnRegisterGroupReq = new WSUnRegisterGroupReq();
+        wsUnRegisterGroupReq.vGroupId = groupId;
         JceOutputStream outputStream = CommonLib.out();
         wsUnRegisterGroupReq.writeTo(outputStream);
         WebSocketCommand socketCommand = new WebSocketCommand();
